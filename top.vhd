@@ -1,0 +1,65 @@
+library ieee;
+use ieee.std_logic_1164.all;
+use ieee.numeric_std.all;
+
+library neorv32;
+use neorv32.neorv32_package.all;
+
+entity top is
+  port (
+    clk_i       : in  std_ulogic; 
+    rstn_i      : in  std_ulogic; 
+    uart0_txd_o : out std_ulogic; 
+    uart0_rxd_i : in  std_ulogic; 
+    trig_o      : out std_ulogic; 
+    echo_i      : in  std_ulogic;
+    led_r_o     : out std_ulogic; 
+    led_y_o     : out std_ulogic; 
+    led_g_o     : out std_ulogic  
+  );
+end entity top;
+
+architecture top_arch of top is
+
+  signal con_gpio_o : std_ulogic_vector(31 downto 0);
+  signal con_gpio_i : std_ulogic_vector(31 downto 0);
+  
+  signal echo_sync : std_ulogic_vector(1 downto 0);
+
+begin
+
+  process(clk_i)
+  begin
+    if rising_edge(clk_i) then
+      echo_sync <= echo_sync(0) & echo_i;
+    end if;
+  end process;
+
+  trig_o  <= con_gpio_o(0); 
+  led_r_o <= con_gpio_o(1); 
+  led_y_o <= con_gpio_o(2); 
+  led_g_o <= con_gpio_o(3); 
+  
+  con_gpio_i <= (31 downto 2 => '0') & echo_sync(1) & '0';
+
+  neorv32_top_inst: neorv32_top
+  generic map (
+    CLOCK_FREQUENCY   => 50000000,
+    BOOT_MODE_SELECT  => 0,          
+    IO_GPIO_NUM       => 32,         
+    IO_UART0_EN       => true,
+    IMEM_EN           => true,
+    IMEM_SIZE         => 16384,
+    DMEM_EN           => true,
+    DMEM_SIZE         => 8192
+  )
+  port map (
+    clk_i       => clk_i,
+    rstn_i      => rstn_i,
+    uart0_txd_o => uart0_txd_o,
+    uart0_rxd_i => uart0_rxd_i,
+    gpio_o      => con_gpio_o,
+    gpio_i      => con_gpio_i
+  );
+
+end architecture;
